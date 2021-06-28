@@ -20,7 +20,7 @@ client.on('ready', () => {
 });
 
 client.on('message', async message => {
-    //if (!message.member.voice.channel) console.error("ボイスチャンネルに参加していません。");
+    //if (!message.member?.voice.channel) console.error("ボイスチャンネルに参加していません。");
     const server_queue = queue.get(message.guild.id);
     const args = message.content
         .slice(config.prefix.length)
