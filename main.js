@@ -1,3 +1,4 @@
+'use strict';
 const http = require('http');
 http
     .createServer(function (req, res) {
@@ -56,6 +57,7 @@ client.on('message', async message => {
                     views: song_info.videoDetails.viewCount,
                     author: song_info.author
                 };
+                //authorがundeined問題あり確認中 2021/06/28
             } else {
                 message.channel.send('該当する動画が見つかりませんでした。');
             }
