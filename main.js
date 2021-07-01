@@ -1,4 +1,5 @@
-'use strict'
+'use strict';
+
 const http = require('http');
 http
     .createServer(function (req, res) {
@@ -20,7 +21,7 @@ client.on('ready', () => {
 });
 
 client.on('message', async message => {
-    //if (!message.member?.voice.channel) console.error("ボイスチャンネルに参加していません。");
+    //if (!message.member.voice.channel) console.error("ボイスチャンネルに参加していません。");
     const server_queue = queue.get(message.guild.id);
     const args = message.content
         .slice(config.prefix.length)
@@ -39,7 +40,7 @@ client.on('message', async message => {
                 thumbnail: song_info.videoDetails.thumbnails[0],
                 time: song_info.videoDetails.lengthSeconds,
                 views: song_info.videoDetails.viewCount,
-                author: song_info.author
+                //author: song_info.author
             };
         } else {
             const video_finder = async query => {
@@ -55,9 +56,8 @@ client.on('message', async message => {
                     thumbnail: song_info.videoDetails.thumbnails[0],
                     time: song_info.videoDetails.lengthSeconds,
                     views: song_info.videoDetails.viewCount,
-                    author: song_info.author
+                    //author: song_info.author
                 };
-                //authorがundeined問題あり確認中 2021/06/28
             } else {
                 message.channel.send('該当する動画が見つかりませんでした。');
             }
@@ -69,7 +69,8 @@ client.on('message', async message => {
                 text_channel: message.channel,
                 connection: null,
                 songs: [],
-                loop: false
+                loop: false,
+                q_loop: false
             };
 
 
@@ -82,10 +83,9 @@ client.on('message', async message => {
                 .setImage(`${song.thumbnail.url}`)
                 .addField(':tv:動画:', `${song.title}`)
                 .addField(':link:URL:', `${song.url}`)
-                .addField(":clapper:チャンネル:", `${song.author}`)
+                //.addField(":clapper:チャンネル:", `${song.author}`)
                 .setFooter(`👀再生回数: ${song.views}回`);
             message.channel.send(embed);
-
             try {
                 const connection = await queue_constructor.voice_channel.join();
                 queue_constructor.connection = connection;
@@ -108,6 +108,8 @@ client.on('message', async message => {
         stop_song(message, server_queue);
     if (message.content.startsWith(`${config.prefix}loop`))
         loop_song(message);
+    if (message.content.startsWith(`${config.prefix}aloop`))
+        queue_loop(message);
 });
 
 const video_player = async (guild, song) => {
@@ -117,12 +119,21 @@ const video_player = async (guild, song) => {
         queue.delete(guild.id);
         return;
     }
-    const stream = ytdl(song.url, { filter: 'audioonly' });
+    const stream = ytdl(song.url, { 
+      filter: 'audioonly',
+      highWaterMark: 128
+    });
     song_queue.connection
         .play(stream, { seek: 0, volume: 0.5 })
         .on('finish', () => {
-            if (song_queue.loop === false) song_queue.songs.shift();
+            if (!song_queue.loop && !song_queue.q_loop){
+            song_queue.songs.shift();
             video_player(guild, song_queue.songs[0]);
+            } 
+            if(song_queue.q_loop) {
+              song_queue.songs.push(song_queue.songs.shift());
+              video_player(guild, song_queue.songs[0])
+            }
         });
 };
 
@@ -152,7 +163,15 @@ const loop_song = async (message) => {
     if (!message.member.voice.channel) return message.channel.send("音声チャンネルにいる必要があります！");
     if (!song_queue) return message.channel.send("音楽が再生されてません");
     song_queue.loop = !song_queue.loop;
-    await message.channel.send(`:repeat: ループを${song_queue.loop ? `有効` : `無効`}にしました`);
+    await message.channel.send(`:repeat:ループを${song_queue.loop ? `有効` : `無効`}にしました`);
+}
+
+const queue_loop = async (message) => {
+    const song_queue = queue.get(message.guild.id);
+    if (!message.member.voice.channel) return message.channel.send("音声チャンネルにいる必要があります！");
+    if (!song_queue) return message.channel.send("音楽が再生されてません");
+    song_queue.q_loop = !song_queue.q_loop;
+    await message.channel.send(`:repeat:全曲ループを${song_queue.q_loop ? `有効` : `無効`}にしました`);
 }
 
 client.login(process.env.token);
