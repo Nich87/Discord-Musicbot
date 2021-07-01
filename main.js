@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 const http = require('http');
 http
     .createServer(function (req, res) {
