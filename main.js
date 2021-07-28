@@ -92,9 +92,7 @@ client.on('message', async message => {
                 video_player(message.guild, queue_constructor.songs[0]);
             } catch (err) {
                 queue.delete(message.guild.id);
-                message.channel.send(
-                    '接続エラーが発生しました。権限が適切でないか、技術的な問題が発生しました。'
-                );
+                message.channel.send('接続エラーが発生しました。権限が適切でないか、技術的な問題が発生しました。');
                 throw err;
             }
         } else {
