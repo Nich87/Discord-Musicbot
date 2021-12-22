@@ -1,20 +1,24 @@
 {
-  "name": "Discord-Musicbot",
+  "name": "d.jsmusicbot",
   "version": "1.0.0",
   "description": "Created by Nich87",
   "main": "index.js",
   "dependencies": {
     "@discordjs/opus": "^0.5.0",
-    "discord.js": "^12.5.3",
+    "@discordjs/voice": "^0.7.5",
+    "discord.js": "^13.3.1",
     "dotenv": "^8.2.0",
-    "ffmpeg-static": "^4.3.0",
-    "yt-search": "^2.7.6",
-    "ytdl-core": "^4.8.3"
+    "ffmpeg-static": "^4.4.0",
+    "libsodium": "^0.7.9",
+    "sodium": "^3.0.2",
+    "yt-search": "^2.10.2",
+    "ytdl-core": "^4.9.2"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": "https://github.com/Nich87/Discord-Musicbot.git"
 }
