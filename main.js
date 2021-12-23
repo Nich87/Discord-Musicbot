@@ -164,7 +164,7 @@ const skip_song = (message, channel) => {
     if (!channel) return message.channel.send('ボイスチャンネルに参加していません');
     const song_queue = queue.get(message.guild.id);
     if (!song_queue) return message.channel.send('キューに曲がありません。');
-    if (isForceloop) return;
+    if (Settings.isForceloop) return;
     song_queue.songs.shift();
     video_player(song_queue.Guild);
 };
