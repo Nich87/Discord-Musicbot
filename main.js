@@ -118,11 +118,11 @@ const play_request = async (message, server_queue) => {
         // send a message to the channel
         const embed = new MessageEmbed()
             .setColor('RED')
-            .setTitle(':notes:再生中')
+            .setTitle(':notes: 再生中')
             .setImage(`${song.thumbnail.url}`)
-            .addField(':tv:動画:', `${song.title}`)
-            .addField(':link:URL:', `${song.url}`)
-            .setFooter({ text: `:eyes:再生回数: ${song.views}回` });    
+            .addField(':tv: 動画:', `${song.title}`)
+            .addField(':link: URL:', `${song.url}`)
+            .setFooter({ text: `\ud83d\udc40再生回数: ${song.views}回` });    
         await message.channel.send({ embeds: [embed] });
 
         await video_player(message.guild.id);
