@@ -46,7 +46,11 @@ client.on('messageCreate', async message => {
     const server_queue = queue.get(message.guild.id);
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
 
-    if (message.content.startsWith(`${config.prefix}play`) && !server_queue) {
+    if (message.content.startsWith(`${config.prefix}play`)) {
+        if (server_queue) {
+            server_queue.songs.push(song);
+            return message.channel.send(`:notes:**${song.title}** をキューに追加しました。`);
+        }
         if (!args.length) return message.channel.send('URLまたは検索ワードが入力されていません。');
         let song = {};
 
@@ -117,9 +121,6 @@ client.on('messageCreate', async message => {
             message.channel.send('接続エラーが発生しました。権限が適切でないか、技術的な問題が発生しました。');
             throw err;
         }
-    } else {
-        server_queue.songs.push(song);
-        return message.channel.send(`:notes:**${song.title}** をキューに追加しました。`);
     }
     if (message.content.startsWith(`${config.prefix}skip`))
         skip_song(message, channel);
