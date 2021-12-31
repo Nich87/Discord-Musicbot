@@ -125,7 +125,7 @@ const play_request = async (message, server_queue) => {
             text_channel: message.channel,
             voice_channel_id: voice_channel.id,
             volume: settings.global_volume,
-            resource: null
+            resource: null,
             songs: [ song ],
             loop: false,
             q_loop: false,
