@@ -1,11 +1,5 @@
 'use strict';
 
-const http = require('node:http');
-http.createServer((_, res) => {
-        res.write('online');
-        res.end();
-    }).listen(8080);
-
 //discord.js(voice)
 const { joinVoiceChannel, createAudioResource, createAudioPlayer, StreamType, entersState, AudioPlayerStatus } = require('@discordjs/voice');
 const { Client, MessageEmbed, Intents, version: djs_version } = require('discord.js');
@@ -18,12 +12,26 @@ const ytSearch = require('yt-search');
 const ytdl = require('ytdl-core');
 
 //各種設定等
+const settings = {
+    global_volume: 1,
+    is_force_loop: true, //リピート再生が有効化されている場合、スキップを無効化するか
+    repl_it_mode: false,  //repl.it(replit.com)を使用する場合はtrueに設定してください。
+}
+if (!settings.repl_it_mode) {
+    require('dotenv').config({
+        path: './.env',
+    });
+} else {
+    globalThis.requireFile = filePath => require(path.join(process.cwd(), filePath));
+    const http = require('node:http');
+    http.createServer((_, res) => {
+        res.write('online');
+        res.end();
+    }).listen(8080);
+}
+const { seconds_to_time, format_viewcount } = require('./Util/Num_Convert');
 const config = require('./config.json');
 const queue_map = new Map();
-const settings = {
-    global_volume: 0.3,
-    is_force_loop: true //リピート再生が有効化されている場合、スキップを無効化するか
-}
 
 client.on('ready', () => {
     console.log('[INFO]Music Client started!');
@@ -43,7 +51,9 @@ client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild || !message.member) return;
     const server_queue = queue_map.get(message.guild.id);
     try {
-        if (message.content.startsWith(`${config.prefix}play`)) 
+        if (message.content.startsWith(`${config.prefix}help`))
+            return await show_help(message, server_queue);
+        if (message.content.startsWith(`${config.prefix}play`))
             return await play_request(message, server_queue);
         if (message.content.startsWith(`${config.prefix}skip`))
             return await skip_song(message, server_queue);
@@ -53,6 +63,14 @@ client.on('messageCreate', async message => {
             return await loop_song(message, server_queue);
         if (message.content.startsWith(`${config.prefix}aloop`))
             return await loop_queue(message, server_queue);
+        if (message.content.startsWith(`${config.prefix}queue`))
+            return await show_queue(message, server_queue);
+        if(message.content.startsWith(`${config.prefix}volume`))
+            return await change_volume(message, server_queue);
+        if (message.content.startsWith(`${config.prefix}pause`))
+            return await pause_song(message, server_queue);
+        if (message.content.startsWith(`${config.prefix}resume`))
+            return await resume_song(message, server_queue);
     } catch (err) {
         console.error(err);
     }
@@ -62,11 +80,10 @@ const play_request = async (message, server_queue) => {
     // check if the user is in a voice channel
     const voice_channel = message.member.voice.channel;
     if (server_queue) {
-        if (server_queue.voice_channel_id !== voice_channel?.id) 
+        if (server_queue.voice_channel_id !== voice_channel?.id)
             return await message.channel.send(`<#${server_queue.voice_channel_id}>に参加してください。`);
     } else {
-        if (!voice_channel) 
-            return await message.channel.send("ボイスチャンネルに参加してください。");
+        if (!voice_channel) return await message.channel.send("ボイスチャンネルに参加してください。");
     }
 
     // check if the arguments are valid
@@ -108,11 +125,12 @@ const play_request = async (message, server_queue) => {
             text_channel: message.channel,
             voice_channel_id: voice_channel.id,
             volume: settings.global_volume,
+            resource: null
             songs: [ song ],
             loop: false,
             q_loop: false,
             connection,
-            player
+            player,
         });
 
         // send a message to the channel
@@ -122,7 +140,7 @@ const play_request = async (message, server_queue) => {
             .setImage(`${song.thumbnail.url}`)
             .addField(':tv: 動画:', `${song.title}`)
             .addField(':link: URL:', `${song.url}`)
-            .setFooter({ text: `\ud83d\udc40再生回数: ${song.views}回` });    
+            .setFooter({ text: `\ud83d\udc40再生回数: ${format_viewcount(song.views)}回` });
         await message.channel.send({ embeds: [embed] });
 
         await video_player(message.guild.id);
@@ -147,11 +165,15 @@ const video_player = async (guild_id) => {
     const stream = ytdl(song_queue.songs[0].url, {
         filter: format => format.audioCodec === 'opus' && format.container === 'webm',
         quality: 'highest',
-        highWaterMark: 32 * 1024 * 1024
+        highWaterMark: 32 * 1024 * 1024,
     });
     const resource = createAudioResource(stream, {
-        inputType: StreamType.WebmOpus
-    });
+        inputType: StreamType.WebmOpus,
+        inlineVolume: true,
+    })
+    resource.volume.setVolume(settings.global_volume)
+
+    song_queue.resource = resource;
     song_queue.player.play(resource);
 
     // play it and wait for the end
@@ -202,6 +224,78 @@ const loop_queue = async (message, song_queue) => {
     await message.channel.send(`:repeat:全曲ループを${song_queue.q_loop ? `有効` : `無効`}にしました。`);
 };
 
+const show_queue = async (message,song_queue) => {
+    if (await check_state_invalid(message)) return;
+    const embed = new MessageEmbed()
+        .setColor('RED')
+        .setTitle(':notes: キュー')
+        .setThumbnail(message.guild.iconURL({ dynamic: true }))
+        .setFooter({ text: `実行者:${message.author.tag}` })
+        let counter = 0;
+        for(const song of song_queue.songs) {
+            if (!counter) {
+                embed.addField(`現在再生中:${song.title}`, `再生時間:${seconds_to_time(song.time)} | ${format_viewcount(song.views)}回再生されています！`)
+                counter++;
+            } else {
+                embed.addField(`${counter}.${song.title}`,`再生時間:${seconds_to_time(song.time)} | ${format_viewcount(song.views)}回再生されています！`)
+                counter++;
+            }
+        }
+        message.channel.send({ embeds:[embed] });
+}
+
+const show_help = async (message) => {
+    const embed = new MessageEmbed()
+        .setColor('RED')
+        .setTitle('📒 ヘルプを表示します')
+        .setThumbnail(message.guild.iconURL({ dynamic: true }))
+        .setFooter({ text: `実行者:${message.author.tag}` })
+        .addFields(
+            { name: `${config.prefix}help`, value: 'このヘルプを表示します。' },
+            { name: `${config.prefix}play <URL or query>` , value:'指定したURL、もしくはキーワード検索の結果を再生します。' },
+            { name: `${config.prefix}stop` , value:'再生中の楽曲を停止します。' },
+            { name: `${config.prefix}pause` , value:'再生中の楽曲を一時停止します。' },
+            { name: `${config.prefix}queue` , value:'再生中の楽曲を表示します。' },
+            { name: `${config.prefix}resume` , value:'再生中の楽曲を再開します。' },
+            { name: `${config.prefix}skip` , value:'再生中の楽曲をスキップします。' },
+            { name: `${config.prefix}loop` , value:'再生中の楽曲をループするかどうかを切り替えます。' },
+            { name: `${config.prefix}aloop` , value:'全曲ループを有効にするかどうかを切り替えます。' },
+            { name: `${config.prefix}volume <0-100(upper)>` , value:'再生中の楽曲の音量を変更します。' }
+        )
+    message.channel.send({ embeds: [embed] });
+}
+
+const change_volume = async (message, song_queue) => {
+    if(await check_state_invalid(message)) return;
+    song_queue.resource.volume.setVolume(message.content.split(' ')[1]);
+    message.channel.send(`:loud_sound: 音量を**${message.content.split(' ')[1]}**に変更しました。`);
+}
+
+const pause_song = async (message, song_queue) => {
+    if (await check_state_invalid(message)) return;
+    if(song_queue.connection.state.status === 'paused') return message.channel.send('再生中の楽曲はすでに一時停止されています。');
+    song_queue.player.pause();
+    const embed = new MessageEmbed()
+        .setColor('RED')
+        .setTitle('⏸再生を一時停止しました')
+        .setDescription(`再開するには**${config.prefix}resume**を実行してください。`)
+        .setThumbnail(message.author.avatarURL({ dynamic: true }))
+        .setFooter({ text: `実行者:${message.author.tag}` })
+    await message.channel.send({ embeds: [embed] });
+}
+
+const resume_song = async (message, song_queue) => {
+    if (await check_state_invalid(message)) return;
+    if(song_queue.connection.state.starus === 'playing') return message.channel.send('既に再生中です。');
+    song_queue.player.unpause();
+    const embed = new MessageEmbed()
+        .setColor('RED')
+        .setTitle('▶再生を再開しました')
+        .setThumbnail(message.author.avatarURL({ dynamic: true }))
+        .setFooter({ text: `実行者:${message.author.tag}` })
+    await message.channel.send({ embeds: [embed] });
+}
+
 const check_state_invalid = async (message) => {
     const song_queue = queue_map.get(message.guild.id);
     if (!song_queue) {
@@ -219,9 +313,9 @@ const check_state_invalid = async (message) => {
 client.on('threadCreate', async thread => {
     try {
         if (thread.joinable && !thread.joined) await thread.join();
-    } catch (e) { 
+    } catch (e) {
         console.warn(`[ERROR]${e}`);
     }
 });
 
-client.login(DISCORD_BOT_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
