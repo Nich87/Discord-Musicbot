@@ -29,7 +29,7 @@ if (!settings.repl_it_mode) {
         res.end();
     }).listen(8080);
 }
-const { seconds_to_time, format_viewcount } = require('./Util/Num_Convert');
+const { seconds_to_time, format_viewcount } = require('./Util/NumConvert');
 const config = require('./config.json');
 const queue_map = new Map();
 
