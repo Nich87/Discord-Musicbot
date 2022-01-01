@@ -71,8 +71,8 @@ client.on('messageCreate', async message => {
             return await pause_song(message, server_queue);
         if (message.content.startsWith(`${config.prefix}resume`))
             return await resume_song(message, server_queue);
-    } catch (err) {
-        console.error(err);
+    } catch (e) {
+        console.error(e);
     }
 });
 
