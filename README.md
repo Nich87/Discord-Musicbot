@@ -12,5 +12,5 @@
 - @discordjs/voice
 - @discordjs/opus
 - ffmpeg-static
-- ytdl-core/yt-search
+- ytdl-core/yt-search/ytpl
 - tweetnacl
