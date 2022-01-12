@@ -95,7 +95,8 @@ const play_request = async (message, server_queue) => {
     if (args.length < 2) return await message.channel.send('URLまたは検索ワードが入力されていません。');
 
     // resolve the song url
-    const url = await resolve_song_url(args);
+    if(args[1].includes(playlist)) url = await resolve_song_url(args,true);
+    else url = await resolve_song_url(args,false);
     if (!url) return await message.channel.send('該当する動画が見つかりませんでした。');
     // fetch the song info
     let song_info,song;
@@ -163,9 +164,9 @@ const check_state_invalid = async (message) => {
     return false;
 };
 
-const resolve_song_url = async (args) => {
+const resolve_song_url = async (args,isPlaylist) => {
     if (ytdl.validateURL(args[1])) return [args[1],'video'];
-    if (ytpl.validateID(args[1])) return [args[1], 'playlist'];
+    if (isPlaylist) return [args[1], 'playlist'];
     const video_result = await ytSearch(args.slice(1).join(' '));
     return 1 < video_result.videos.length ? video_result.videos[0].url : null;
 };
