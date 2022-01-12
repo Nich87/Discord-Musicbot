@@ -93,13 +93,12 @@ const play_request = async (message, server_queue) => {
     // check if the arguments are valid
     const args = message.content.slice(config.prefix.length).trim().split(/\s+/g);
     if (args.length < 2) return await message.channel.send('URLまたは検索ワードが入力されていません。');
-
+    let song_info,song,url;
     // resolve the song url
     if(args[1].includes(playlist)) url = await resolve_song_url(args,true);
     else url = await resolve_song_url(args,false);
     if (!url) return await message.channel.send('該当する動画が見つかりませんでした。');
     // fetch the song info
-    let song_info,song;
     if(url[1] === 'video') {
         song_info = await ytdl.getInfo(url[0]);
         song = {
