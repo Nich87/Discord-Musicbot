@@ -95,7 +95,7 @@ const play_request = async (message, server_queue) => {
     if (args.length < 2) return await message.channel.send('URLまたは検索ワードが入力されていません。');
     let song_info,song,url;
     // resolve the song url
-    if(args[1].includes(playlist)) url = await resolve_song_url(args,true);
+    if(args[1].includes('playlist')) url = await resolve_song_url(args,true);
     else url = await resolve_song_url(args,false);
     if (!url) return await message.channel.send('該当する動画が見つかりませんでした。');
     // fetch the song info
