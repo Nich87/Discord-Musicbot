@@ -94,7 +94,6 @@ const play_request = async (message, server_queue) => {
     const args = message.content.slice(config.prefix.length).trim().split(/\s+/g);
     if (args.length < 2) return await message.channel.send('URLまたは検索ワードが入力されていません。');
     // fetch the song info
-    //let song_info,song;
     if (isSong(args[1])) {
         const song_info = await ytdl.getInfo(args[1]);
         const song = {
