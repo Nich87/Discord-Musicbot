@@ -31,6 +31,7 @@ if (!settings.repl_it_mode) {
     }).listen(8080);
 }
 const { seconds_to_time, format_viewcount } = require('./Util/NumConvert');
+const { random } = require('./Util/random');
 const config = require('./config.json');
 const queue_map = new Map();
 
@@ -73,6 +74,8 @@ client.on('messageCreate', async message => {
             return await pause_song(message, server_queue);
         if (message.content.startsWith(`${config.prefix}resume`))
             return await resume_song(message, server_queue);
+        if (message.content.startsWith(`${config.prefix}shuffle`))
+            return await shuffle_queue(message, server_queue);
     } catch (e) {
         console.error(e);
     }
@@ -94,6 +97,13 @@ const play_request = async (message, server_queue) => {
     const args = message.content.slice(config.prefix.length).trim().split(/\s+/g);
     if (args.length < 2) return await message.channel.send('URLまたは検索ワードが入力されていません。');
     // fetch the song info
+    const isSong = url => ytdl.validateURL(url);
+    const isPlaylist = url => ytpl.validateID(url);
+    const isResult = async query => {
+        const Result = await ytSearch(query);
+        return 1 <= Result.videos.length ? Result.videos[0].url : null;
+    };
+
     if (isSong(args[1])) {
         const song_info = await ytdl.getInfo(args[1]);
         const song = {
@@ -124,10 +134,9 @@ const play_request = async (message, server_queue) => {
             server_queue.songs.push(song);
         }
         let times = 0;
-        song_info.items.forEach(items => times += items.durationSec)
+        song_info.items.forEach(items => times += items.durationSec);
         await message.channel.send(`:notes:**${song_info.estimatedItemCount}曲(${seconds_to_time(times)})** をキューに追加しました。`);
     } else {
-        if(isResult(args[1])){
             const song_info = await ytdl.getInfo(await isResult(args[1]));
             const song = {
                 title: song_info.videoDetails.title,
@@ -136,11 +145,7 @@ const play_request = async (message, server_queue) => {
                 time: song_info.videoDetails.lengthSeconds,
                 views: song_info.videoDetails.viewCount
             };
-            if (server_queue.songs[0]) {
             server_queue.songs.push(song);
-            return await message.channel.send(`:notes:**${song.title}** をキューに追加しました。`);
-            }
-        } else return await message.channel.send('検索結果が見つかりませんでした。')
     }
 
     try {
@@ -154,20 +159,12 @@ const play_request = async (message, server_queue) => {
             .addField(':link: URL:', `${server_queue.songs[0].url}`)
             .setFooter({ text: `\ud83d\udc40再生回数: ${format_viewcount(server_queue.songs[0].views)}回` });
         await message.channel.send({ embeds: [embed] });
-
-        await video_player(message.guild.id);
+        await video_player(message.guild.id,message);
     } catch (e) {
         await message.channel.send('接続エラーが発生しました。権限が適切でないか、技術的な問題が発生しました。');
         throw e;
     }
 }
-
-const isPlaylist = url => ytpl.validateID(url);
-const isSong = url => ytdl.validateURL(url);
-const isResult = async query => {
-    const Result = await ytSearch(query);
-    return 1 <= Result.videos.length ? Result.videos[0].url : null;
-};
 
 const check_state_invalid = async (message) => {
     const song_queue = queue_map.get(message.guild.id);
@@ -211,11 +208,10 @@ const Setup = async (message, voice_channel) => {
     }
 };
 
-const video_player = async (guild_id) => {
+const video_player = async (guild_id,message) => {
     // get the queue
     const song_queue = queue_map.get(guild_id);
     if (!song_queue?.songs[0]) return queue_map.delete(guild_id);
-
     // fecth the song's data
     const stream = ytdl(song_queue.songs[0].url, {
         filter: format => format.audioCodec === 'opus' && format.container === 'webm',
@@ -252,13 +248,14 @@ const skip_song = async (message, song_queue) => {
     if (settings.is_force_loop && song_queue.loop) return;
     song_queue.player.stop();
     song_queue.songs.shift();
-    video_player(message.guild.id);
+    video_player(message.guild.id,message);
 };
 
 const stop_song = async (message, song_queue) => {
     if (await check_state_invalid(message)) return;
     song_queue.connection.destroy();
     queue_map.delete(message.guild.id);
+    message.channel.topic = temp_topic;
     const embed = new MessageEmbed()
         .setColor('RED')
         .setTitle('⏹再生を終了しました')
@@ -295,13 +292,19 @@ const resume_song = async (message, song_queue) => {
 const loop_song = async (message, song_queue) => {
     if (await check_state_invalid(message)) return;
     song_queue.loop = !song_queue.loop;
-    await message.channel.send(`:repeat:ループを${song_queue.loop ? `有効` : `無効`}にしました`);
+    await message.channel.send(`:repeat:ループを${song_queue.loop ? `有効` : `無効`}にしました！`);
 };
+
+const shuffle_queue = async(message, song_queue) => {
+    if (await check_state_invalid(message)) return;
+    song_queue.songs = random(song_queue.songs);
+    await message.channel.send(`:twisted_rightwards_arrows:キューをシャッフルしました！`)
+}
 
 const loop_queue = async (message, song_queue) => {
     if (await check_state_invalid(message)) return;
     song_queue.q_loop = !song_queue.q_loop;
-    await message.channel.send(`:repeat:全曲ループを${song_queue.q_loop ? `有効` : `無効`}にしました。`);
+    await message.channel.send(`:repeat:全曲ループを${song_queue.q_loop ? `有効` : `無効`}にしました！`);
 };
 
 const show_queue = async (message, song_queue) => {
@@ -340,7 +343,8 @@ const show_help = async (message) => {
             { name: `${config.prefix}skip`, value: '再生中の楽曲をスキップします。' },
             { name: `${config.prefix}loop`, value: '再生中の楽曲をループするかどうかを切り替えます。' },
             { name: `${config.prefix}aloop`, value: '全曲ループを有効にするかどうかを切り替えます。' },
-            { name: `${config.prefix}volume <0-100(upper)>`, value: '再生中の楽曲の音量を変更します。' }
+            { name: `${config.prefix}volume <0-100(upper)>`, value: '再生中の楽曲の音量を変更します。' },
+            { name: `${config.prefix}shuffle`, value: 'キューをシャッフルします。'}
         )
     message.channel.send({ embeds: [embed] });
 };
