@@ -4,7 +4,7 @@
   "description": "Simple-Musicbot",
   "main": "main.js",
   "dependencies": {
-    "@discordjs/opus": "^0.7.0",
+    "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.8.0",
     "discord.js": "^13.6.0",
     "dotenv": "^16.0.0",
