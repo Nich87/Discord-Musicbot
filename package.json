@@ -7,7 +7,7 @@
     "@discordjs/opus": "^0.7.0",
     "@discordjs/voice": "^0.8.0",
     "discord.js": "^13.6.0",
-    "dotenv": "^16.0.0",
+    "dotenv": "^17.0.0",
     "ffmpeg-static": "^4.4.1",
     "tweetnacl": "^1.0.3",
     "yt-search": "^2.10.3",
